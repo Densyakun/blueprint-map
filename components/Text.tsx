@@ -1,12 +1,19 @@
 'use client'
 
 import { useSnapshot } from "valtio"
-import { state } from "@/lib/yjs"
+import { state, wsProvider } from "./Yjs"
+import { useEffect, useState } from "react"
 
 export default function Text() {
-  const snap = useSnapshot(state)
+  const [synced, setSynced] = useState(wsProvider?.synced)
+  const { count } = useSnapshot(state)
+
+  useEffect(() => {
+    setSynced(wsProvider.synced)
+  }, [wsProvider.synced])
 
   return <>
-    count: {snap.count}
+    <p>synced: {synced ? "true" : "false"}</p>
+    <p>count: {count}</p>
   </>
 }

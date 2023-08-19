@@ -11,12 +11,14 @@ export const state = proxy({
   count: 0,
 });
 
-function setup() {
+export let wsProvider: WebsocketProvider;
+
+export default function YjsComponent() {
   if (typeof window === "undefined") {
     return;
   }
 
-  const wsProvider = new WebsocketProvider(`wss://${location.hostname}:1234`, 'my-roomname', doc);
+  wsProvider = new WebsocketProvider(`wss://${location.hostname}:1234`, 'my-roomname', doc);
 
   wsProvider.on('sync', (isSynced: boolean) => {
     if (isSynced) {
@@ -27,6 +29,6 @@ function setup() {
   const ymap = doc.getMap("mymap");
 
   bind(state, ymap);
-}
 
-setup();
+  return null;
+}

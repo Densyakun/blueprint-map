@@ -15,5 +15,6 @@ export default function Text() {
   return <>
     <p>synced: {synced ? "true" : "false"}</p>
     <p>count: {count}</p>
+    <button onClick={() => ++state.count}>count up</button>
   </>
 }

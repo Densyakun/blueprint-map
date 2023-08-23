@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ws": "HOST=0.0.0.0 PORT=1234 npx y-websocket"
+    "ws": "HOST=0.0.0.0 PORT=1234 node bin/ws-server.js"
   },
   "dependencies": {
     "@types/node": "20.4.10",

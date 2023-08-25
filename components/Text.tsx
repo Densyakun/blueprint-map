@@ -1,24 +1,27 @@
 'use client'
 
-import { useEffect, useState } from "react"
 import { useSnapshot } from "valtio"
-import { state, yjsClient } from "./Client"
+import { socket, state } from "./Client"
+import { FROM_CLIENT_COUNT_UP_A, FROM_CLIENT_COUNT_UP_B } from "@/lib/game"
+import useIsSynced from "@/lib/useIsSynced"
 
 export default function Text() {
-  const [synced, setSynced] = useState(yjsClient?.wsProvider.synced)
-  const { count } = useSnapshot(state)
-
-  useEffect(() => {
-    if (yjsClient) {
-      yjsClient.wsProvider.on('sync', (isSynced: boolean) => {
-        setSynced(isSynced)
-      })
-    }
-  }, [yjsClient?.wsProvider])
+  const isSynced = useIsSynced()
+  const { countA, countB } = useSnapshot(state)
 
   return <>
-    <p>synced: {synced ? "true" : "false"}</p>
-    <p>count: {count}</p>
-    <button onClick={() => ++state.count}>count up</button>
+    <p>isSynced: {isSynced ? "true" : "false"}</p>
+    <p>countA {">="} countB</p>
+    <p>countA: {countA}</p>
+    <p>countB: {countB}</p>
+    <button onClick={() => {
+      ++state.countA
+
+      socket.send(JSON.stringify([FROM_CLIENT_COUNT_UP_A]))
+    }}>count up A</button>
+    {" "}
+    <button onClick={() => {
+      socket.send(JSON.stringify([FROM_CLIENT_COUNT_UP_B]))
+    }}>count up B</button>
   </>
 }

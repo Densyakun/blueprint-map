@@ -1,20 +1,24 @@
 'use client'
 
-import { useSnapshot } from "valtio"
 import { useEffect, useState } from "react"
-import { yjsClient } from "@/lib/client"
+import { useSnapshot } from "valtio"
+import { state, yjsClient } from "./Client"
 
 export default function Text() {
-  const [synced, setSynced] = useState(yjsClient.wsProvider.synced)
-  const { count } = useSnapshot(yjsClient.state)
+  const [synced, setSynced] = useState(yjsClient?.wsProvider.synced)
+  const { count } = useSnapshot(state)
 
   useEffect(() => {
-    setSynced(yjsClient.wsProvider.synced)
-  }, [yjsClient.wsProvider.synced])
+    if (yjsClient) {
+      yjsClient.wsProvider.on('sync', (isSynced: boolean) => {
+        setSynced(isSynced)
+      })
+    }
+  }, [yjsClient?.wsProvider])
 
   return <>
     <p>synced: {synced ? "true" : "false"}</p>
     <p>count: {count}</p>
-    <button onClick={() => ++yjsClient.state.count}>count up</button>
+    <button onClick={() => ++state.count}>count up</button>
   </>
 }

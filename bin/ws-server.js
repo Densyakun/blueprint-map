@@ -5,8 +5,6 @@ const createServer = require('http').createServer
 const wss = new WebSocket.Server({ noServer: true })
 const setupWSConnection = require('y-websocket/bin/utils').setupWSConnection
 
-const YjsClient = require('../lib/yjsClient.js')
-
 const host = process.env.HOST || 'localhost'
 const port = process.env.PORT || 1234
 
@@ -17,18 +15,6 @@ const server = createServer((request, response) => {
 
 wss.on('connection', (conn, req, opts) => {
   setupWSConnection(conn, req, opts)
-
-  conn.on('message', message => {
-    console.log(`message: ${message}`)
-
-    /*wss.clients.forEach(client => {
-        client.send(message)
-    })*/
-  })
-
-  conn.on('close', () => {
-    console.log('close')
-  })
 })
 
 server.on('upgrade', (request, socket, head) => {
@@ -46,14 +32,3 @@ server.on('upgrade', (request, socket, head) => {
 server.listen(port, host, () => {
   console.log(`running at '${host}' on port ${port}`)
 })
-
-function setupAntiCheatClient() {
-  const yjsClient = new YjsClient()
-
-  /*yjsClient.wsProvider.on('sync', (isSynced: boolean) => {
-    if (isSynced) {
-      ++state.count
-    }
-  })*/
-}
-setupAntiCheatClient()

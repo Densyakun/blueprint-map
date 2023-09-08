@@ -1,0 +1,19 @@
+body {
+  margin: 0;
+}
+
+#canvas-container,
+#ui-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+#ui-container {
+  pointer-events: none;
+}
+
+.ui-panel {
+  background-color: #ffffffbf;
+  pointer-events: auto;
+}

@@ -11,6 +11,9 @@
     "ws": "NODE_OPTIONS=\"--loader ts-node/esm\" HOST=0.0.0.0 PORT=8080 node bin/ws-server.ts"
   },
   "dependencies": {
+    "@mapbox/sphericalmercator": "^1.2.0",
+    "@react-three/drei": "^9.83.3",
+    "@react-three/fiber": "^8.14.1",
     "@types/node": "20.4.10",
     "@types/react": "18.2.20",
     "@types/react-dom": "18.2.7",
@@ -20,12 +23,14 @@
     "next": "13.4.13",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "three": "^0.156.1",
     "ts-node": "^10.9.1",
     "typescript": "5.1.6",
     "valtio": "^1.11.2",
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@types/mapbox__sphericalmercator": "^1.2.0",
     "bufferutil": "^4.0.7",
     "supports-color": "^9.4.0",
     "utf-8-validate": "^6.0.3"

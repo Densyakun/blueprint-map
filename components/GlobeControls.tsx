@@ -2,7 +2,7 @@
 
 import { getLat, getLon, setLocation } from '@/lib/location'
 import { scale } from '@/lib/planet'
-import { TrackballControls } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import EventEmitter from 'events'
 import { ComponentProps, useEffect, useRef } from 'react'
@@ -16,7 +16,7 @@ export const location = proxy({
 
 export const eventEmitter = new EventEmitter()
 
-export default function GlobeControls(props: ComponentProps<typeof TrackballControls>) {
+export default function GlobeControls(props: ComponentProps<typeof OrbitControls>) {
   const camera = useThree(state => state.camera as PerspectiveCamera)
 
   const rotateSpeed = useRef((camera.position.length() / scale - 1) * 0.3)
@@ -29,8 +29,8 @@ export default function GlobeControls(props: ComponentProps<typeof TrackballCont
   }, [])
 
   return <>
-    <TrackballControls
-      noPan
+    <OrbitControls
+      enablePan={false}
       minDistance={1.01 * scale}
       maxDistance={2 * scale}
       onChange={() => {

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "ws": "HOST=0.0.0.0 PORT=8080 ts-node --esm bin/ws-server.ts"
+    "ws": "NODE_OPTIONS=\"--loader ts-node/esm\" HOST=0.0.0.0 PORT=8080 node bin/ws-server.ts"
   },
   "dependencies": {
     "@types/node": "20.4.10",

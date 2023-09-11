@@ -2,12 +2,12 @@
 
 import { useSnapshot } from "valtio"
 import { location } from "./GlobeControls"
-import useIsSynced from "@/lib/useIsSynced"
+import { clientState } from "@/lib/client"
 
 export default function UIContainer() {
   const { lat, lon } = useSnapshot(location)
 
-  const isSynced = useIsSynced()
+  const { isSynced } = useSnapshot(clientState)
 
   return (
     <div id="ui-container">

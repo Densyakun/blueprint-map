@@ -18,3 +18,10 @@ export function setLocation(position: Vector3, latitude: number, longitude: numb
     Math.sin(-b) * Math.cos(a) * radius
   )
 }
+
+export type BBox = {
+  west: number,
+  south: number,
+  east: number,
+  north: number
+}

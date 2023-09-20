@@ -4,31 +4,32 @@ import { BBox, getLat, getLon } from "./location";
 
 const t = (1 + Math.sqrt(5)) / 2;
 
-const getWestAndEast = (lon0: number, lon1: number, lon2: number) => {
-  const c = lon0 < lon1;
-  const d = lon0 < lon2;
+const getWestAndEast = (lat0: number, lon0: number, lat1: number, lon1: number, lat2: number, lon2: number) => {
+  let _lon0 = lon0;
+  let _lon1 = lon1;
+  let _lon2 = lon2;
 
-  const a = Math.abs(lon1 - lon0) < 180;
-  const b = Math.abs(lon2 - lon0) < 180;
+  if (lat0 === -90 || lat0 === 90)
+    _lon0 = lon1;
+  else if (lat1 === -90 || lat1 === 90)
+    _lon1 = lon0;
+  else if (lat2 === -90 || lat2 === 90)
+    _lon2 = lon0;
 
-  const _lon0 = a && b ? lon0 : c || d ? lon0 + 360 : lon0;
-  const _lon1 = a ? lon1 : c && d ? lon1 : lon1 + 360;
-  const _lon2 = b ? lon2 : c && d ? lon2 : lon2 + 360;
+  const c = _lon0 < _lon1;
+  const d = _lon0 < _lon2;
+
+  const a = Math.abs(_lon1 - _lon0) < 180;
+  const b = Math.abs(_lon2 - _lon0) < 180;
+
+  _lon1 = a ? _lon1 : c ? _lon1 - 360 : _lon1 + 360;
+  _lon2 = b ? _lon2 : d ? _lon2 - 360 : _lon2 + 360;
 
   const west = Math.min(_lon0, _lon1, _lon2);
   const east = Math.max(_lon0, _lon1, _lon2);
 
-  return [west, east];
+  return [west - Math.floor((west + 180) / 360) * 360, east - Math.floor((east + 180) / 360) * 360];
 }
-
-// -10, 10
-// 170, 190
-console.log(getWestAndEast(-10, 10, 0));
-console.log(getWestAndEast(10, -10, 0));
-console.log(getWestAndEast(-10, 0, 10));
-console.log(getWestAndEast(170, -170, 180));
-console.log(getWestAndEast(-170, 170, 180));
-console.log(getWestAndEast(170, 180, -170));
 
 export class ClippedIcosahedronGeometry extends ClippedPolyhedronGeometry {
   constructor(radius = 1, detail = 0, bbox: BBox) {
@@ -72,21 +73,22 @@ export class ClippedIcosahedronGeometry extends ClippedPolyhedronGeometry {
         continue;
       }
 
+      if (bbox.west === bbox.east)
+        continue;
+
       const lon0 = getLon(v0);
       const lon1 = getLon(v1);
       const lon2 = getLon(v2);
-      const [west, east] = getWestAndEast(lon0, lon1, lon2);
-      // TODO Repeat
-      //const e = bbox.west <= bbox.east;
-      const e = true;
-      /*if (e
-        ? c
+      const [west, east] = getWestAndEast(lat0, lon0, lat1, lon1, lat2, lon2);
+      const e = west <= east;
+      const f = bbox.west <= bbox.east;
+      if (f
+        ? e
           ? west > bbox.east || bbox.west > east
-          : west + 360 > bbox.east || bbox.west > east - 360
-        : c
-          ? west > bbox.east + 360 || bbox.west - 360 > east
-          : west > bbox.east || bbox.west > east)*/
-      if (west > bbox.east || bbox.west > east)
+          : west > bbox.east && bbox.west > east
+        : e
+          ? west > bbox.east && bbox.west > east
+          : false)
         indices[i] = indices[i + 1] = indices[i + 2] = -1;
     }
     indices = indices.filter(value => 0 <= value);

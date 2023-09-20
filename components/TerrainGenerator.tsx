@@ -20,27 +20,21 @@ export default function TerrainGenerator() {
   useFrame(() => {
     //if (socket.readyState !== 1) return
 
-    /*const newChunkY = getChunkY(location.lat)
+    const newChunkY = getChunkY(location.lat)
     const chunkWidthSegments = getChunkWidthSegments(newChunkY)
     const newChunkX = getChunkX(location.lon, chunkWidthSegments)
 
     if (newChunkX === currentChunkX && newChunkY === currentChunkY) return
     currentChunkX = newChunkX
-    currentChunkY = newChunkY*/
+    currentChunkY = newChunkY
 
     //socket.send(JSON.stringify([FROM_CLIENT_GET_TERRAIN, [newChunkX, newChunkY]]))
 
-    /*const geometry = new ClippedIcosahedronGeometry(scale, 0, {
+    const geometry = new ClippedIcosahedronGeometry(scale, 0, {
       west: newChunkX * 360 / chunkWidthSegments - 180,
-      east: newChunkX + 1 === chunkWidthSegments ? 0 : (newChunkX + 1) * 360 / chunkWidthSegments - 180,
+      east: (newChunkX + 1 === chunkWidthSegments) ? -180 : (newChunkX + 1) * 360 / chunkWidthSegments - 180,
       south: 90 - (newChunkY + 1) * 180 / chunkHeightSegments,
       north: 90 - newChunkY * 180 / chunkHeightSegments
-    })*/
-    const geometry = new ClippedIcosahedronGeometry(scale, 0, {
-      west: location.lon,
-      east: location.lon,
-      south: location.lat,
-      north: location.lat
     })
     meshRef.current.geometry.attributes = geometry.attributes
   })

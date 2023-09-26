@@ -30,13 +30,15 @@ export default function TerrainGenerator() {
 
     //socket.send(JSON.stringify([FROM_CLIENT_GET_TERRAIN, [newChunkX, newChunkY]]))
 
-    const geometry = new ClippedIcosahedronGeometry(scale, 0, {
+    const geometry = new ClippedIcosahedronGeometry(scale, 255, {
       west: newChunkX * 360 / chunkWidthSegments - 180,
       east: (newChunkX + 1 === chunkWidthSegments) ? -180 : (newChunkX + 1) * 360 / chunkWidthSegments - 180,
       south: 90 - (newChunkY + 1) * 180 / chunkHeightSegments,
       north: 90 - newChunkY * 180 / chunkHeightSegments
     })
     meshRef.current.geometry.attributes = geometry.attributes
+    meshRef.current.geometry.computeBoundingBox()
+    meshRef.current.geometry.computeBoundingSphere()
   })
 
   const onReceiveTerrain: OnMessageInClient = (id, value, ws) => {

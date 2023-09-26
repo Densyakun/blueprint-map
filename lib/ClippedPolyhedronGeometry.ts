@@ -1,5 +1,57 @@
 import { BufferGeometry, Float32BufferAttribute, Vector2, Vector3 } from "three";
-import { BBox } from "./location";
+import { BBox, getLat, getLon } from "./location";
+
+function getWestAndEast(latA: number, lonA: number, latB: number, lonB: number, latC: number, lonC: number) {
+  let _lonA = lonA;
+  let _lonB = lonB;
+  let _lonC = lonC;
+
+  if (latA === -90 || latA === 90)
+    _lonA = lonB;
+  else if (latB === -90 || latB === 90)
+    _lonB = lonA;
+  else if (latC === -90 || latC === 90)
+    _lonC = lonA;
+
+  const a = _lonA < _lonB;
+  const b = _lonA < _lonC;
+
+  const c = Math.abs(_lonB - _lonA) < 180;
+  const d = Math.abs(_lonC - _lonA) < 180;
+
+  _lonB = c ? _lonB : a ? _lonB - 360 : _lonB + 360;
+  _lonC = d ? _lonC : b ? _lonC - 360 : _lonC + 360;
+
+  const west = Math.min(_lonA, _lonB, _lonC);
+  const east = Math.max(_lonA, _lonB, _lonC);
+
+  return [west - Math.floor((west + 180) / 360) * 360, east - Math.floor((east + 180) / 360) * 360];
+}
+
+export function isTouchingTriangle(a: Vector3, b: Vector3, c: Vector3, bbox: BBox) {
+  const latA = getLat(a);
+  const latB = getLat(b);
+  const latC = getLat(c);
+  const south = Math.min(latA, latB, latC);
+  const north = Math.max(latA, latB, latC);
+  if (south > bbox.north || bbox.south > north) return false;
+
+  if (bbox.west === bbox.east) return true;
+
+  const lonA = getLon(a);
+  const lonB = getLon(b);
+  const lonC = getLon(c);
+  const [west, east] = getWestAndEast(latA, lonA, latB, lonB, latC, lonC);
+  const d = west <= east;
+  const e = bbox.west <= bbox.east;
+  return e
+    ? d
+      ? west <= bbox.east && bbox.west <= east
+      : west <= bbox.east || bbox.west <= east
+    : d
+      ? west <= bbox.east || bbox.west <= east
+      : true;
+}
 
 export class ClippedPolyhedronGeometry extends BufferGeometry {
   constructor(vertices: number[] = [], indices: number[] = [], radius = 1, detail = 0, bbox: BBox) {
@@ -52,8 +104,9 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
       // we use this multidimensional array as a data structure for creating the subdivision
       const v: Vector3[][] = [];
 
-      // construct all of the vertices for this subdivision
+      let d = false;
       for (let i = 0; i <= cols; i++) {
+        // construct all of the vertices for this subdivision
         v[i] = [];
 
         const aj = a.clone().lerp(c, i / cols);
@@ -68,23 +121,31 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
             v[i][j] = aj.clone().lerp(bj, j / rows);
           }
         }
-      }
 
-      // construct all of the faces
-      for (let i = 0; i < cols; i++) {
-        for (let j = 0; j < 2 * (cols - i) - 1; j++) {
+        // construct all of the faces
+        if (i === 0) continue;
+        let e = false;
+        for (let j = 0; j < 2 * (cols - (i - 1)) - 1; j++) {
           const k = Math.floor(j / 2);
 
           if (j % 2 === 0) {
+            if (isTouchingTriangle(v[i - 1][k + 1], v[i][k], v[i - 1][k], bbox)) {
+              e = true;
+              pushVertex(v[i - 1][k + 1]);
+              pushVertex(v[i][k]);
+              pushVertex(v[i - 1][k]);
+            }
+          } else if (isTouchingTriangle(v[i - 1][k + 1], v[i][k + 1], v[i][k], bbox)) {
+            e = true;
+            pushVertex(v[i - 1][k + 1]);
             pushVertex(v[i][k + 1]);
-            pushVertex(v[i + 1][k]);
             pushVertex(v[i][k]);
-          } else {
-            pushVertex(v[i][k + 1]);
-            pushVertex(v[i + 1][k + 1]);
-            pushVertex(v[i + 1][k]);
           }
         }
+
+        if (d && !e)
+          break;
+        d = e;
       }
     }
 

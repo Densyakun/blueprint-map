@@ -1,29 +1,27 @@
 import { BufferGeometry, Float32BufferAttribute, Vector2, Vector3 } from "three";
 import { BBox, getLat, getLon } from "./location";
+import { getChunkWidthSegments, getChunkX, getChunkY } from "./terrain";
 
-function getWestAndEast(latA: number, lonA: number, latB: number, lonB: number, latC: number, lonC: number) {
-  let _lonA = lonA;
-  let _lonB = lonB;
-  let _lonC = lonC;
+function getWestAndEast(latArray: number[], lonArray: number[]) {
+  let _lonArray: number[] = [];
 
-  if (latA === -90 || latA === 90)
-    _lonA = lonB;
-  else if (latB === -90 || latB === 90)
-    _lonB = lonA;
-  else if (latC === -90 || latC === 90)
-    _lonC = lonA;
+  lonArray.forEach((lon, index) => {
+    const _lon = latArray[index] === -90 || latArray[index] === 90
+      ? index === 0
+        ? lonArray[1]
+        : lonArray[0]
+      : lon;
 
-  const a = _lonA < _lonB;
-  const b = _lonA < _lonC;
+    _lonArray[index] = index === 0
+      ? _lon
+      : Math.abs(_lon - _lonArray[0]) < 180
+        ? _lon
+        : _lonArray[0] < _lon
+          ? _lon - 360 : _lon + 360;
+  });
 
-  const c = Math.abs(_lonB - _lonA) < 180;
-  const d = Math.abs(_lonC - _lonA) < 180;
-
-  _lonB = c ? _lonB : a ? _lonB - 360 : _lonB + 360;
-  _lonC = d ? _lonC : b ? _lonC - 360 : _lonC + 360;
-
-  const west = Math.min(_lonA, _lonB, _lonC);
-  const east = Math.max(_lonA, _lonB, _lonC);
+  const west = Math.min(..._lonArray);
+  const east = Math.max(..._lonArray);
 
   return [west - Math.floor((west + 180) / 360) * 360, east - Math.floor((east + 180) / 360) * 360];
 }
@@ -41,7 +39,7 @@ export function isTouchingTriangle(a: Vector3, b: Vector3, c: Vector3, bbox: BBo
   const lonA = getLon(a);
   const lonB = getLon(b);
   const lonC = getLon(c);
-  const [west, east] = getWestAndEast(latA, lonA, latB, lonB, latC, lonC);
+  const [west, east] = getWestAndEast([latA, latB, latC], [lonA, lonB, lonC]);
   const d = west <= east;
   const e = bbox.west <= bbox.east;
   return e
@@ -51,6 +49,113 @@ export function isTouchingTriangle(a: Vector3, b: Vector3, c: Vector3, bbox: BBo
     : d
       ? west <= bbox.east || bbox.west <= east
       : true;
+}
+
+function Cross(ax: number, ay: number, bx: number, by: number): number {
+  return ax * by - ay * bx;
+}
+
+function getIntersectionS(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number) {
+  const deno = Cross(bx - ax, by - ay, dx - cx, dy - cy);
+  if (deno == 0.0) {
+    // 線分が平行
+    return;
+  }
+  const s = Cross(cx - ax, cy - ay, dx - cx, dy - cy) / deno;
+  return s;
+}
+
+function getIntersectionLon(a: Vector3, b: Vector3, lonRad: number) {
+  const lonX = Math.cos(lonRad);
+  const lonZ = Math.sin(lonRad);
+
+  return getIntersectionS(a.x, -a.z, b.x, -b.z, 0, 0, lonX, lonZ);
+}
+
+function getStartAndEndCol(cols: number, a: Vector3, b: Vector3, c: Vector3, bbox: BBox) {
+  // クリッピングした三角形が複数に分かれる場合には非対応
+
+  let startWest = 0;
+  let endWest = 1;
+  let startEast = 0;
+  let endEast = 1;
+  if (bbox.west !== bbox.east) {
+    const lonA = Math.round(getLon(a) / 36) * 36;
+    const lonB = Math.round(getLon(b) / 36) * 36;
+    const lonC = Math.round(getLon(c) / 36) * 36;
+
+    //const lonAB = lonB - lonA - Math.floor((lonB + 180 - lonA) / 360) * 360;
+    const lonAC = lonC - lonA - Math.floor((lonC + 180 - lonA) / 360) * 360;
+    //const lonBC = lonC - lonB - Math.floor((lonC + 180 - lonB) / 360) * 360;
+
+    const westA = lonA - bbox.west - Math.floor((lonA + 180 - bbox.west) / 360) * 360;
+    const westB = lonB - bbox.west - Math.floor((lonB + 180 - bbox.west) / 360) * 360;
+
+    const bboxWestRad = bbox.west * Math.PI / 180;
+    const sWestAC = getIntersectionLon(a, c, bboxWestRad);
+    const sWestBC = getIntersectionLon(b, c, bboxWestRad);
+
+    // TODO 範囲内に三角形の境界線がある場合、正しくクリッピングされない
+
+    startWest = 0 <= westA === westB < 0
+      ? 0
+      : sWestAC !== undefined && 0 <= sWestAC && sWestAC <= 1 && sWestBC !== undefined && 0 <= sWestBC && sWestBC <= 1
+        ? 0 <= lonAC
+          ? Math.min(sWestAC, sWestBC)
+          : 0
+        : 0 <= westA
+          ? 0
+          : 1;
+    endWest = sWestAC !== undefined && 0 <= sWestAC && sWestAC <= 1
+      ? 0 <= lonAC
+        ? 1
+        : sWestBC !== undefined && 0 <= sWestBC && sWestBC <= 1
+          ? Math.max(sWestAC, sWestBC)
+          : sWestAC
+      : sWestBC !== undefined && 0 <= sWestBC && sWestBC <= 1
+        ? 0 <= lonAC
+          ? 1
+          : sWestBC
+        : 0 <= westA
+          ? 1
+          : 0;
+
+    const bboxEastRad = bbox.east * Math.PI / 180;
+    const sEastAC = getIntersectionLon(a, c, bboxEastRad);
+    const sEastBC = getIntersectionLon(b, c, bboxEastRad);
+
+    const eastA = lonA - bbox.east - Math.floor((lonA + 180 - bbox.east) / 360) * 360;
+    const eastB = lonB - bbox.east - Math.floor((lonB + 180 - bbox.east) / 360) * 360;
+
+    startEast = 0 <= eastA === eastB < 0
+      ? 0
+      : sEastAC !== undefined && 0 <= sEastAC && sEastAC <= 1 && sEastBC !== undefined && 0 <= sEastBC && sEastBC <= 1
+        ? 0 <= lonAC
+          ? 0
+          : Math.min(sEastAC, sEastBC)
+        : eastA <= 0
+          ? 0
+          : 1;
+    endEast = sEastAC !== undefined && 0 <= sEastAC && sEastAC <= 1
+      ? 0 <= lonAC
+        ? sEastBC !== undefined && 0 <= sEastBC && sEastBC <= 1
+          ? Math.max(sEastAC, sEastBC)
+          : sEastAC
+        : 1
+      : sEastBC !== undefined && 0 <= sEastBC && sEastBC <= 1
+        ? 0 <= lonAC
+          ? sEastBC
+          : 1
+        : eastA <= 0
+          ? 1
+          : 0;
+
+    console.log(0 <= westA, eastA <= 0);
+  }
+
+  //console.log(startWest, endWest, startEast, endEast);
+
+  return [Math.floor(Math.max(startWest, startEast) * cols), Math.ceil(Math.min(endWest, endEast) * cols)];
 }
 
 export class ClippedPolyhedronGeometry extends BufferGeometry {
@@ -98,6 +203,45 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
       }
     }
 
+    function getVerticesInChunk(v: Vector3[][], bbox: BBox) {
+      const chunkY = getChunkY(bbox.south);
+      const chunkX = getChunkX(bbox.west, getChunkWidthSegments(chunkY));
+
+      let count = 0;
+      v.forEach(array => array.forEach(v => {
+        const chunkY1 = getChunkY(getLat(v));
+        const chunkX1 = getChunkX(getLon(v), getChunkWidthSegments(chunkY1));
+        if (chunkY1 === chunkY && chunkX1 === chunkX) count++;
+      }))
+
+      return count;
+    }
+
+    function subdivideFaceOld(a: Vector3, b: Vector3, c: Vector3, detail: number) {
+      const cols = detail + 1;
+
+      const v: Vector3[][] = [];
+
+      for (let i = 0; i <= cols; i++) {
+        v[i] = [];
+
+        const aj = a.clone().lerp(c, i / cols);
+        const bj = b.clone().lerp(c, i / cols);
+
+        const rows = cols - i;
+
+        for (let j = 0; j <= rows; j++) {
+          if (j === 0 && i === cols) {
+            v[i][j] = aj;
+          } else {
+            v[i][j] = aj.clone().lerp(bj, j / rows);
+          }
+        }
+      }
+
+      return getVerticesInChunk(v, bbox);
+    }
+
     function subdivideFace(a: Vector3, b: Vector3, c: Vector3, detail: number) {
       const cols = detail + 1;
 
@@ -105,7 +249,8 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
       const v: Vector3[][] = [];
 
       let d = false;
-      for (let i = 0; i <= cols; i++) {
+      let [startCol, endCol] = getStartAndEndCol(cols, a, b, c, bbox);
+      for (let i = startCol; i <= endCol; i++) {
         // construct all of the vertices for this subdivision
         v[i] = [];
 
@@ -123,20 +268,16 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
         }
 
         // construct all of the faces
-        if (i === 0) continue;
+        if (i === startCol) continue;
         let e = false;
         for (let j = 0; j < 2 * (cols - (i - 1)) - 1; j++) {
           const k = Math.floor(j / 2);
 
           if (j % 2 === 0) {
-            if (isTouchingTriangle(v[i - 1][k + 1], v[i][k], v[i - 1][k], bbox)) {
-              e = true;
-              pushVertex(v[i - 1][k + 1]);
-              pushVertex(v[i][k]);
-              pushVertex(v[i - 1][k]);
-            }
-          } else if (isTouchingTriangle(v[i - 1][k + 1], v[i][k + 1], v[i][k], bbox)) {
-            e = true;
+            pushVertex(v[i - 1][k + 1]);
+            pushVertex(v[i][k]);
+            pushVertex(v[i - 1][k]);
+          } else {
             pushVertex(v[i - 1][k + 1]);
             pushVertex(v[i][k + 1]);
             pushVertex(v[i][k]);
@@ -147,6 +288,10 @@ export class ClippedPolyhedronGeometry extends BufferGeometry {
           break;
         d = e;
       }
+
+      // TODO 経度のクリッピングだけでも、場所によって正しくクリッピングされない
+
+      console.log(getVerticesInChunk(v, bbox) === subdivideFaceOld(a, b, c, detail));
     }
 
     function applyRadius(radius: number) {

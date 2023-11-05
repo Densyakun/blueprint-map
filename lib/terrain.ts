@@ -1,4 +1,5 @@
-export const chunkHeightSegments = 1024
+//export const chunkHeightSegments = 1024
+export const chunkHeightSegments = 3 * 64
 
 export function getChunkY(lat: number) {
   return Math.min(Math.floor((90 - lat) * chunkHeightSegments / 180), chunkHeightSegments - 1)

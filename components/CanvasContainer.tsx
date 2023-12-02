@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber'
 import CameraAndControls from './CameraAndControls'
-import { scale } from '@/lib/planet'
+import TerrainGenerator from './TerrainGenerator'
 
 export default function CanvasContainer() {
   return (
@@ -10,10 +10,7 @@ export default function CanvasContainer() {
       <Canvas shadows>
         <CameraAndControls />
         <directionalLight />
-        <mesh>
-          <icosahedronGeometry args={[scale, 6]} />
-          <meshStandardMaterial />
-        </mesh>
+        <TerrainGenerator />
       </Canvas>
     </div>
   )

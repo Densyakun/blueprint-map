@@ -48,3 +48,5 @@ export const FROM_SERVER_STATE_OPS = 1
 export const FROM_SERVER_CANCEL = 2
 export const FROM_CLIENT_COUNT_UP_A = 3
 export const FROM_CLIENT_COUNT_UP_B = 4
+export const FROM_CLIENT_GET_TERRAIN = 5
+export const FROM_SERVER_SEND_TERRAIN = 6

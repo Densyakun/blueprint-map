@@ -6,17 +6,13 @@ import { BufferAttribute, DoubleSide, Mesh } from "three"
 import { radius, scale } from "@/lib/planet"
 import SphericalMercator from "@mapbox/sphericalmercator"
 import { useFrame } from "@react-three/fiber"
-//import { chunkHeightSegments, getChunkWidthSegments, getChunkX, getChunkY } from "@/lib/terrain"
 import { FROM_CLIENT_GET_TERRAIN, FROM_SERVER_SEND_TERRAIN, OnMessageInClient } from "@/lib/game"
 import { socket } from "./Client"
 import { messageEmitter } from "@/lib/client"
+import { HeightmapType, terrainSize, terrainZoom } from "@/lib/terrain"
 
-export type HeightmapType = (number | undefined)[][]
-
-const terrainZoom = 15
 let currentTileX = -1
 let currentTileY = -1
-const terrainSize = 256
 
 var merc = new SphericalMercator({
   size: 256,
@@ -36,45 +32,16 @@ export default function TerrainGenerator() {
     geometry.computeVertexNormals()
   }
 
-  async function fetchTile(url: string, tileSize = 256) {
-    return fetch(url)
-      .then(async res => {
-        const text = await res.text()
-
-        const heightmap: HeightmapType = text.split("\n").slice(0, tileSize).map(line =>
-          line.split(",").map(point => point === "e" ? undefined : parseInt(point))
-        )
-
-        if (heightmap.length !== terrainSize) return
-
-        return heightmap
-      })
-  }
-
-  function writeHeightmap(backHeightmap: HeightmapType, frontHeightmap: HeightmapType, terrainTileX: number, terrainTileY: number, mapTileX: number, mapTileY: number, mapTileZoom: number) {
-    if (mapTileZoom === terrainZoom) {
-      for (let x = 0; x <= terrainSize - 2; x++)
-        for (let y = 0; y <= terrainSize - 2; y++)
-          if (frontHeightmap[y][x] !== undefined)
-            backHeightmap[y][x] = frontHeightmap[y][x]
-
-      return backHeightmap
-    } else {
-      // TODO ズームレベルの異なる地図タイルから標高データを更新する
-      return backHeightmap
-    }
-  }
-
   function applyTile(heightmap: HeightmapType, tileX: number, tileY: number) {
     for (let x = 0; x <= terrainSize - 2; x++) {
       for (let y = 0; y <= terrainSize - 2; y++) {
         const i = (y * (terrainSize - 1) + x) * 2 * 3 * 3
 
         const isEmpty =
-          heightmap[y + 1][x] === undefined
-          || heightmap[y + 1][x + 1] === undefined
-          || heightmap[y][x + 1] === undefined
-          || heightmap[y][x] === undefined
+          heightmap[y + 1][x] === null
+          || heightmap[y + 1][x + 1] === null
+          || heightmap[y][x + 1] === null
+          || heightmap[y][x] === null
 
         if (isEmpty) {
           vertices.current[i] =
@@ -139,7 +106,7 @@ export default function TerrainGenerator() {
   }
 
   useFrame(() => {
-    //if (socket.readyState !== 1) return
+    if (socket.readyState !== 1) return
 
     let [newTileX, newTileY] = merc.px([location.lon, location.lat], terrainZoom)
       .map((value: number) => Math.floor(value / 256))
@@ -150,47 +117,7 @@ export default function TerrainGenerator() {
     currentTileX = newTileX
     currentTileY = newTileY
 
-    // TODO サーバー側で処理
-    //socket.send(JSON.stringify([FROM_CLIENT_GET_TERRAIN, [newTileX, newTileY]]))
-
-    // 範囲内のタイルを取得
-    /*function fetchTiles(fetchTileCallback: (mapTileX: number, mapTileY: number) => Promise<HeightmapType | undefined>, terrainTileX: number, terrainTileY: number, mapTileZoom: number) {
-      if (mapTileZoom === terrainZoom) {
-
-        return [fetchTileCallback(terrainTileX, terrainTileY)]
-      } else {
-        // TODO ズームレベルの異なる複数の地図タイル
-        // mapTileZoom < terrainZoom
-        return [fetchTileCallback(terrainTileX, terrainTileY)]
-      }
-    }*/
-
-    //const tileXList = [newTileX, newTileX]
-    //const tileYList = [newTileY, newTileY]
-
-    Promise.allSettled([
-      //...fetchTiles((mapTileX, mapTileY) => fetchTile(`https://cyberjapandata.gsi.go.jp/xyz/demgm/8/${mapTileX}/${mapTileY}.txt`), newTileX, newTileY, 8),
-      fetchTile(`https://cyberjapandata.gsi.go.jp/xyz/dem5b/15/${newTileX}/${newTileY}.txt`),
-      fetchTile(`https://cyberjapandata.gsi.go.jp/xyz/dem5a/15/${newTileX}/${newTileY}.txt`),
-    ])
-      .then(results => {
-        if (newTileX !== currentTileX || newTileY !== currentTileY) return
-
-        let oldHeightmap: HeightmapType = new Array(terrainSize).fill(0).map(() => new Array(terrainSize))
-        results.forEach(result => {
-          if (result.status === "rejected") return
-
-          const heightmap = result.value
-          if (!heightmap) return
-
-          oldHeightmap = writeHeightmap(oldHeightmap, heightmap, newTileX, newTileY, newTileX, newTileY, 15)
-        })
-
-        applyTile(oldHeightmap, newTileX, newTileY)
-      })
-      .catch(error => {
-        console.error(error)
-      })
+    socket.send(JSON.stringify([FROM_CLIENT_GET_TERRAIN, [newTileX, newTileY]]))
   })
 
   useEffect(applyMesh)
@@ -198,7 +125,14 @@ export default function TerrainGenerator() {
   const onReceiveTerrain: OnMessageInClient = (id, value, ws) => {
     switch (id) {
       case FROM_SERVER_SEND_TERRAIN:
-        // TODO
+        messageEmitter.isInvalidMessage = false
+
+        const [tileX, tileY, heightmap] = value
+
+        if (tileX !== currentTileX || tileY !== currentTileY) return
+
+        applyTile(heightmap, tileX, tileY)
+
         break
       default:
         break

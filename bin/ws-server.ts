@@ -1,6 +1,7 @@
 import { subscribe } from 'valtio';
 import { WebSocketServer } from 'ws';
-import { FROM_CLIENT_COUNT_UP_A, FROM_CLIENT_COUNT_UP_B, FROM_SERVER_CANCEL, FROM_SERVER_STATE, FROM_SERVER_STATE_OPS, MessageEmitter, OnMessageInServer, getNewState } from '../lib/game.js';
+import { FROM_CLIENT_COUNT_UP_A, FROM_CLIENT_COUNT_UP_B, FROM_CLIENT_GET_TERRAIN, FROM_SERVER_CANCEL, FROM_SERVER_SEND_TERRAIN, FROM_SERVER_STATE, FROM_SERVER_STATE_OPS, MessageEmitter, OnMessageInServer, getNewState } from '../lib/game.js';
+import { fetchHeightmap } from '../lib/terrain.js';
 
 const host = process.env.HOST || 'localhost';
 const port = parseInt(process.env.PORT || '8080');
@@ -38,6 +39,16 @@ const onMessage: OnMessageInServer = (id, value, ws) => {
         ++gameState.countB;
       else
         ws.send(JSON.stringify([FROM_SERVER_CANCEL]));
+
+      messageEmitter.isInvalidMessage = false;
+      break;
+    case FROM_CLIENT_GET_TERRAIN:
+      const [tileX, tileY] = value;
+
+      fetchHeightmap(tileX, tileY)
+        .then(heightmap => {
+          ws.send(JSON.stringify([FROM_SERVER_SEND_TERRAIN, [tileX, tileY, heightmap]]));
+        });
 
       messageEmitter.isInvalidMessage = false;
       break;

@@ -48,7 +48,7 @@ export default function Client() {
   }
 
   useEffect(() => {
-    const address = `wss://${location.hostname}:8080/ws`
+    const address = `ws://${location.hostname}:8080/ws`
     socket = new WebSocket(address)
 
     messageEmitter.on('message', onMessage)

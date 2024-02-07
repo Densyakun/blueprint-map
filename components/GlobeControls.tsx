@@ -12,7 +12,8 @@ import { proxy } from 'valtio'
 export let minDistance = (100 + radius) * scale / radius
 //export let maxDistance = 2 * scale
 export let maxDistance = (100000 + radius) * scale / radius
-export let zoomSpeed = 0.01
+export let rotateSpeedFactor = 0.175
+export let zoomSpeedFactor = 10
 
 export const location = proxy({
   lat: 35.685,
@@ -24,11 +25,15 @@ export const eventEmitter = new EventEmitter()
 export default function GlobeControls(props: ComponentProps<typeof OrbitControls>) {
   const camera = useThree(state => state.camera as PerspectiveCamera)
 
-  const rotateSpeed = useRef((camera.position.length() / scale - 1) * 0.3)
+  const distance = camera.position.length() / scale - 1
+  const rotateSpeed = useRef(distance * rotateSpeedFactor)
+  const zoomSpeed = useRef(distance * zoomSpeedFactor)
 
   useEffect(() => {
     setLocation(camera.position, location.lat, location.lon)
-    rotateSpeed.current = (camera.position.length() / scale - 1) * 0.3
+    const distance = camera.position.length() / scale - 1
+    rotateSpeed.current = distance * rotateSpeedFactor
+    zoomSpeed.current = distance * zoomSpeedFactor
 
     eventEmitter.emit('changed')
   }, [])
@@ -38,11 +43,13 @@ export default function GlobeControls(props: ComponentProps<typeof OrbitControls
       enablePan={false}
       minDistance={minDistance}
       maxDistance={maxDistance}
-      zoomSpeed={zoomSpeed}
+      zoomSpeed={zoomSpeed.current}
       onChange={() => {
         location.lat = getLat(camera.position)
         location.lon = getLon(camera.position)
-        rotateSpeed.current = (camera.position.length() / scale - 1) * 0.3
+        const distance = camera.position.length() / scale - 1
+        rotateSpeed.current = distance * rotateSpeedFactor
+        zoomSpeed.current = distance * zoomSpeedFactor
 
         eventEmitter.emit('changed')
       }}
